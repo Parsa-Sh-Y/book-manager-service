@@ -6,13 +6,13 @@ import (
 
 type User struct {
 	ID          uint
-	Username    string `gorm:"type:varchar(50)"`
-	Email       string `gorm:"type:varchar(50)"`
-	Password    string `gorm:"type:varchar(255)"`
-	Firstname   string `gorm:"type:varchar(50)"`
-	Lastname    string `gorm:"type:varchar(50)"`
-	PhoneNumber string `gorm:"type:char(11)"`
-	Gender      string `gorm:"type:varchar(50)"`
+	Username    string `gorm:"type:varchar(50)" json:"user_name"`
+	Email       string `gorm:"type:varchar(50)" json:"email"`
+	Password    string `gorm:"type:varchar(255)" json:"password"`
+	Firstname   string `gorm:"type:varchar(50)" json:"first_name"`
+	Lastname    string `gorm:"type:varchar(50)" json:"last_name"`
+	PhoneNumber string `gorm:"type:char(11)"  json:"phone_number"`
+	Gender      string `gorm:"type:varchar(50)"  json:"gender"`
 	Books       []Book
 }
 

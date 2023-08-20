@@ -20,11 +20,11 @@ var (
 	ErrPhoneNumberIsInUse = errors.New("phone number is in use by another account")
 )
 
-type gormDB struct {
+type GormDB struct {
 	db *gorm.DB
 }
 
-func CreateNewGormDB(config config.Config) (*gormDB, error) {
+func CreateNewGormDB(config config.Config) (*GormDB, error) {
 
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable",
 		config.Database.Host,
@@ -38,13 +38,13 @@ func CreateNewGormDB(config config.Config) (*gormDB, error) {
 		return nil, err
 	}
 
-	return &gormDB{
+	return &GormDB{
 		db: db,
 	}, nil
 
 }
 
-func (gdb *gormDB) CreateSchema() error {
+func (gdb *GormDB) CreateSchema() error {
 
 	err := gdb.db.AutoMigrate(&models.User{}, &models.Book{}, &models.Content{})
 
@@ -56,7 +56,7 @@ func (gdb *gormDB) CreateSchema() error {
 
 }
 
-func (gdb *gormDB) CreateUser(user *models.User) error {
+func (gdb *GormDB) CreateUser(user *models.User) error {
 
 	// Check if no other account with the same username exists
 	var count int64
@@ -87,12 +87,12 @@ func (gdb *gormDB) CreateUser(user *models.User) error {
 	return result.Error
 }
 
-func (gdb *gormDB) CreateBook(book *models.Book) error {
+func (gdb *GormDB) CreateBook(book *models.Book) error {
 
 	return gdb.db.Create(&book).Error
 }
 
-func (gdb *gormDB) GetBook(id int) (*models.Book, error) {
+func (gdb *GormDB) GetBook(id int) (*models.Book, error) {
 
 	var book models.Book
 	err := gdb.db.Where("id = ?", id).First(&book).Error
@@ -105,11 +105,11 @@ func (gdb *gormDB) GetBook(id int) (*models.Book, error) {
 
 }
 
-func (gdb *gormDB) DeleteBook(id int) error {
+func (gdb *GormDB) DeleteBook(id int) error {
 
 	return gdb.db.Delete(&models.Book{}, id).Error
 }
 
-func (gdb *gormDB) UpdateBook(id int, name string, category string) error {
+func (gdb *GormDB) UpdateBook(id int, name string, category string) error {
 	return gdb.db.Model(models.Book{}).Where("id = ?", id).Update("name", name).Update("category", category).Error
 }
