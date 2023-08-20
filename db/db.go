@@ -14,8 +14,10 @@ import (
 var (
 	// ErrEmailIsInUse There exists another account with the same email
 	ErrEmailIsInUse = errors.New("email is in use by another account")
-	//
+	// ErrUsernameIsInUse There exists another account with the same username
 	ErrUsernameIsInUse = errors.New("username is in use by another account")
+	// ErrPhoneNumberIsInUse There exists another account with the same phone number
+	ErrPhoneNumberIsInUse = errors.New("phone number is in use by another account")
 )
 
 type gormDB struct {
@@ -67,6 +69,12 @@ func (gdb *gormDB) CreateUser(user *models.User) error {
 	gdb.db.Model(&models.User{}).Where("email = ?", user.Email).Count(&count)
 	if count > 0 {
 		return ErrEmailIsInUse
+	}
+
+	// Check if no other account with the same phone number exists
+	gdb.db.Model(&models.User{}).Where("phone_number = ?", user.PhoneNumber).Count(&count)
+	if count > 0 {
+		return ErrPhoneNumberIsInUse
 	}
 
 	if pw, err := bcrypt.GenerateFromPassword([]byte(user.Password), 4); err != nil {
