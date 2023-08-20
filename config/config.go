@@ -8,4 +8,5 @@ type Config struct {
 		User     string `env:"DATABASE_USER" env-default:"postgres" env-description:"Database user for service"`
 		Password string `env:"DATABASE_PASSWORD" env-default:"postgresdev82" env-description:"Database password for service"`
 	}
+	JwtExpirationInMinutes int64 `env:"JWT_EXP_MINUTES" env-default:"10" env-description:"Jwt expiration minutes"`
 }
