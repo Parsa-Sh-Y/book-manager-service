@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
+	"net/http"
 
 	"github.com/Parsa-Sh-Y/book-manager-service/config"
-	"github.com/Parsa-Sh-Y/book-manager-service/db"
+	"github.com/Parsa-Sh-Y/book-manager-service/handlers"
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
@@ -13,14 +13,10 @@ func main() {
 	var cfg config.Config
 	cleanenv.ReadEnv(&cfg)
 
-	db, err := db.CreateNewGormDB(cfg)
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
+	server := handlers.CreateNewServer(cfg)
 
-	err = db.CreateSchema()
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
+	http.HandleFunc("/api/v1/auth/signup", server.HandleSignup)
+
+	http.ListenAndServe(":8080", nil)
 
 }
