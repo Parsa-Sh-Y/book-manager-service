@@ -98,3 +98,42 @@ func (s *Server) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	w.Write(resBody)
 
 }
+
+func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
+
+	// check if mehtod is POST
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// get the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var cred auth.UserCredentials
+	// parse the request body
+	err = json.Unmarshal(body, &cred)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	token, err := s.auth.Login(&cred)
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	respone, err := json.Marshal(map[string]string{"access_token": token})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(respone)
+}

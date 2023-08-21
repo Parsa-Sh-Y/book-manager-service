@@ -18,6 +18,8 @@ var (
 	ErrUsernameIsInUse = errors.New("username is in use by another account")
 	// ErrPhoneNumberIsInUse There exists another account with the same phone number
 	ErrPhoneNumberIsInUse = errors.New("phone number is in use by another account")
+
+	ErrUserNotFound = errors.New("no user was found or multiple users were found")
 )
 
 type GormDB struct {
@@ -112,4 +114,39 @@ func (gdb *GormDB) DeleteBook(id int) error {
 
 func (gdb *GormDB) UpdateBook(id int, name string, category string) error {
 	return gdb.db.Model(models.Book{}).Where("id = ?", id).Update("name", name).Update("category", category).Error
+}
+
+// The boolean returned is flase when there is an error
+func (gdb *GormDB) IsUsernamePresent(username string) (bool, error) {
+
+	var count int64
+	err := gdb.db.Model(models.User{}).Where("username = ?", username).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	if count == 1 {
+		return true, nil
+	} else {
+		return false, nil
+	}
+
+}
+
+// When there is an error nil is return instead of a user
+func (gdb *GormDB) GetUserByUsername(username string) (*models.User, error) {
+
+	var user models.User
+	result := gdb.db.Model(models.User{}).Where("username = ?", username).Find(&user)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	if result.RowsAffected == 1 {
+		return &user, nil
+	} else {
+		return nil, ErrUserNotFound
+	}
+
 }
