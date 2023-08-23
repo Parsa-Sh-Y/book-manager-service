@@ -110,10 +110,17 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check if request body is empty
+	if r.Body == nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	// get the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("error reading the request body")
 		return
 	}
 
@@ -122,18 +129,38 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(body, &cred)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		s.logger.WithError(err).Warn("could not parse the request body")
 		return
 	}
 
 	token, err := s.auth.Login(&cred)
-	if err != nil {
-		w.WriteHeader(http.StatusForbidden)
+	if err == db.ErrUserNotFound {
+		respone, err := json.Marshal(map[string]interface{}{"message": "no such username exists"})
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			s.logger.WithError(err).Error("error trying to marshal the respone message")
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(respone)
+	} else if err == auth.ErrIncorrectPassword {
+		respone, err := json.Marshal(map[string]interface{}{"message": "incorrect password"})
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			s.logger.WithError(err).Error("error trying to marshal the respone message")
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(respone)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	respone, err := json.Marshal(map[string]string{"access_token": token})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("error trying to marshal respone message")
 		return
 	}
 
@@ -155,24 +182,28 @@ func (s *Server) HandleCreateBook(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == auth.ErrCanNotValidateToken {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Print(err.Error())
+			s.logger.WithError(err).Error("error validating user token")
 			return
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
-			log.Print(err.Error())
+			s.logger.WithError(err).Warn("the was a problem with the token provided")
 			return
 		}
 	}
 
 	account, err := s.db.GetUserByUsername(username)
-	if err != nil {
+	if err == db.ErrUserNotFound {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		s.logger.WithError(err).Error("error retrieving the user from database")
 		return
 	}
 
 	var book models.Book
 	var table tableOfContents
+	// check if request body is empty
 	if r.Body == nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -180,24 +211,25 @@ func (s *Server) HandleCreateBook(w http.ResponseWriter, r *http.Request) {
 	reqData, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		s.logger.WithError(err).Error("error reading request body")
 		return
 	}
 
 	err = json.Unmarshal(reqData, &table)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		s.logger.WithError(err).Warn("there was an error when parsing the request body(table of contents)")
 		return
 	}
 	err = json.Unmarshal(reqData, &book)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		s.logger.WithError(err).Warn("there was an error when parsing the request body(book)")
 		return
 	}
-	book.UserID = account.ID
+	book.UserID = account.ID // set the use who made the request as the owner of the book
 
+	// add each content to the book instance
 	for _, content := range table.Contents {
 		book.TableOfContents = append(book.TableOfContents, models.Content{ContentName: content})
 	}
@@ -216,7 +248,7 @@ func (s *Server) HandleCreateBook(w http.ResponseWriter, r *http.Request) {
 	respone, err := json.Marshal(message)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		s.logger.WithError(err).Error("error trying to marshal the respone message")
 		return
 	}
 
