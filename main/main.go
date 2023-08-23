@@ -16,6 +16,8 @@ func main() {
 	server := handlers.CreateNewServer(cfg)
 
 	http.HandleFunc("/api/v1/auth/signup", server.HandleSignup)
+	http.HandleFunc("/api/v1/auth/login", server.HandleLogin)
+	http.HandleFunc("/api/v1/books", server.HandleCreateBook)
 
 	http.ListenAndServe(":8080", nil)
 

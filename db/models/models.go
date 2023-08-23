@@ -23,17 +23,21 @@ type Content struct {
 }
 
 type Book struct {
-	ID                uint
-	Name              string    `gorm:"type:varchar(255)"`
-	Category          string    `gorm:"type:varchar(255)"`
-	Volumn            int       `gorm:"type:integer"`
-	PublishedAt       time.Time `gorm:"type:date"`
-	TableOfContents   []Content `gorm:"constraint:onUpdate:CASCADE,onDelete:CASCADE"`
-	Summary           string    `gorm:"type:text"`
-	Publisher         string    `gorm:"type:varchar(255)"`
-	AuthorFirstName   string    `gorm:"type:varchar(50)"`
-	AuthorLastName    string    `gorm:"type:varchar(50)"`
-	AuthorBirthday    time.Time `gorm:"type:date"`
-	AuthorNationality string    `gorm:"type:varchar(50)"`
-	UserID            uint
+	ID              uint
+	Name            string    `gorm:"type:varchar(255)" json:"name"`
+	Category        string    `gorm:"type:varchar(255)" json:"category"`
+	Volumn          int       `gorm:"type:integer" json:"volumn"`
+	PublishedAt     time.Time `gorm:"type:date" json:"published_at"`
+	TableOfContents []Content `gorm:"constraint:onUpdate:CASCADE,onDelete:CASCADE"`
+	Summary         string    `gorm:"type:text" json:"summary"`
+	Publisher       string    `gorm:"type:varchar(255)" json:"publisher"`
+	Author          author    `gorm:"embedded" json:"author"`
+	UserID          uint
+}
+
+type author struct {
+	AuthorFirstName   string    `gorm:"type:varchar(50)" json:"first_name"`
+	AuthorLastName    string    `gorm:"type:varchar(50)" json:"last_name"`
+	AuthorBirthday    time.Time `gorm:"type:date" json:"birthday"`
+	AuthorNationality string    `gorm:"type:varchar(50)" json:"nationality"`
 }

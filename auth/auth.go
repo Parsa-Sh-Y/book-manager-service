@@ -11,7 +11,11 @@ import (
 )
 
 var (
-	ErrIncorrectPassword = errors.New("Incorrect Password")
+	ErrIncorrectPassword   = errors.New("incorrect Password")
+	ErrEmptyTokenString    = errors.New("empty token string")
+	ErrInvalidToken        = errors.New("invalid token")
+	ErrCanNotValidateToken = errors.New("can not validate the user token")
+	ErrAnuthorizedToken    = errors.New("anuthorized token")
 )
 
 type UserCredentials struct {
@@ -92,4 +96,33 @@ func (a *Auth) Login(cred *UserCredentials) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+// returns an empty username string if there is an error
+func (a *Auth) GetUsernameByToken(token string) (username string, err error) {
+
+	// check if token is empty
+	if token == "" {
+		return "", ErrEmptyTokenString
+	}
+
+	c := &claims{}
+
+	jwtToken, err := jwt.ParseWithClaims(token, c, func(token *jwt.Token) (interface{}, error) {
+		return a.jwtSecretKey, nil
+	})
+	if err != nil {
+		if err == jwt.ErrSignatureInvalid {
+			return "", errors.New("invalid token")
+		} else {
+			return "", ErrCanNotValidateToken
+		}
+	}
+
+	if !jwtToken.Valid {
+		return "", ErrAnuthorizedToken
+	} else {
+		return c.Username, nil
+	}
+
 }

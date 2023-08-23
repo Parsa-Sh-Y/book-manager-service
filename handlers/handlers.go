@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/Parsa-Sh-Y/book-manager-service/auth"
@@ -18,14 +19,16 @@ type Server struct {
 	auth   *auth.Auth
 }
 
+type tableOfContents struct {
+	Contents []string `json:"table_of_contents"`
+}
+
 func CreateNewServer(conf config.Config) *Server {
 
 	// Setup the logger
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
-	logger.SetReportCaller(true)
-	logger.SetFormatter(&logrus.TextFormatter{ForceColors: true})
-	//logger.SetFormatter(&logrus.JSONFormatter{})
+	logger.SetFormatter(&logrus.TextFormatter{ForceColors: true, FullTimestamp: true})
 
 	// Create new instance of dg.DB
 	gormDB, err := db.CreateNewGormDB(conf)
@@ -131,6 +134,89 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	respone, err := json.Marshal(map[string]string{"access_token": token})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(respone)
+}
+
+func (s *Server) HandleCreateBook(w http.ResponseWriter, r *http.Request) {
+
+	// check if method is POST
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("Authorization")
+
+	username, err := s.auth.GetUsernameByToken(token)
+	if err != nil {
+		if err == auth.ErrCanNotValidateToken {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Print(err.Error())
+			return
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			log.Print(err.Error())
+			return
+		}
+	}
+
+	account, err := s.db.GetUserByUsername(username)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Print(err.Error())
+		return
+	}
+
+	var book models.Book
+	var table tableOfContents
+	if r.Body == nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	reqData, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Print(err.Error())
+		return
+	}
+
+	err = json.Unmarshal(reqData, &table)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Print(err.Error())
+		return
+	}
+	err = json.Unmarshal(reqData, &book)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Print(err.Error())
+		return
+	}
+	book.UserID = account.ID
+
+	for _, content := range table.Contents {
+		book.TableOfContents = append(book.TableOfContents, models.Content{ContentName: content})
+	}
+
+	err = s.db.CreateBook(&book)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Print(err.Error())
+		return
+	}
+
+	message := map[string]interface{}{
+		"message": "book was created successfully",
+	}
+
+	respone, err := json.Marshal(message)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Print(err.Error())
 		return
 	}
 
