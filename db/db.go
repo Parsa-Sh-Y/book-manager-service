@@ -18,8 +18,12 @@ var (
 	ErrUsernameIsInUse = errors.New("username is in use by another account")
 	// ErrPhoneNumberIsInUse There exists another account with the same phone number
 	ErrPhoneNumberIsInUse = errors.New("phone number is in use by another account")
-
+	// ErrUserNotFound Could not find the user
 	ErrUserNotFound = errors.New("no user was found or multiple users were found")
+	// ErrBookNotFound No such book exists
+	ErrBookNotFound = errors.New("no such book exists")
+	// ErrPermissionDenied Permission Denied
+	ErrPermissionDenied = errors.New("permission Denied")
 )
 
 type GormDB struct {
@@ -107,9 +111,37 @@ func (gdb *GormDB) GetBook(id int) (*models.Book, error) {
 
 }
 
-func (gdb *GormDB) DeleteBook(id int) error {
+func (gdb *GormDB) DeleteBook(id uint) error {
 
 	return gdb.db.Delete(&models.Book{}, id).Error
+}
+
+func (gdb *GormDB) DeleteUserBook(username string, bookId uint) error {
+
+	// find the book
+	var book models.Book
+	result := gdb.db.Model(models.Book{}).Where("id = ?", bookId).Find(&book)
+	if result.RowsAffected == 0 {
+		return ErrBookNotFound
+	} else if result.Error != nil {
+		return result.Error
+	}
+
+	// find the user who owns the book
+	var user models.User
+	result = gdb.db.Model(models.User{}).Where("username = ?", username).Find(&user)
+	if result.RowsAffected != 1 {
+		return ErrUserNotFound
+	} else if result.Error != nil {
+		return result.Error
+	}
+
+	// delete the book if the user owns it
+	if user.ID == book.UserID {
+		return gdb.DeleteBook(bookId)
+	} else {
+		return ErrPermissionDenied
+	}
 }
 
 func (gdb *GormDB) UpdateBook(id int, name string, category string) error {

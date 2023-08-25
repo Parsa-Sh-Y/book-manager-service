@@ -34,6 +34,15 @@ type updateRequestBody struct {
 	Category string `json:"category"`
 }
 
+type respone struct {
+	Message string `json:"message"`
+}
+
+func (r *respone) json() []byte {
+	res, _ := json.Marshal(r.Message)
+	return res
+}
+
 func CreateNewServer(conf config.Config) *Server {
 
 	// Setup the logger
@@ -392,7 +401,7 @@ func (s *Server) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	// check if user is logged in
 	token := r.Header.Get("Authorization")
-	_, err := s.auth.GetUsernameByToken(token)
+	username, err := s.auth.GetUsernameByToken(token)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		s.logger.WithError(err).Warn("could not log in the user")
@@ -407,15 +416,21 @@ func (s *Server) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// delete the book
-	err = s.db.DeleteBook(bookID)
-	if err != nil {
+	err = s.db.DeleteUserBook(username, uint(bookID))
+	var res respone
+	if err == db.ErrBookNotFound || err == db.ErrUserNotFound || err == db.ErrPermissionDenied {
+		res.Message = err.Error()
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write(res.json())
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("error deleting a book")
 		return
 	} else {
+		res.Message = "Book was deleted successfully"
 		w.WriteHeader(http.StatusOK)
-		return
+		w.Write(res.json())
 	}
-
 }
 
 func (s *Server) HandleUpdate(w http.ResponseWriter, r *http.Request) {
