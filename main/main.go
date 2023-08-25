@@ -17,8 +17,8 @@ func main() {
 
 	http.HandleFunc("/api/v1/auth/signup", server.HandleSignup)
 	http.HandleFunc("/api/v1/auth/login", server.HandleLogin)
-	http.HandleFunc("/api/v1/books", server.HandleBooks)
-	http.HandleFunc("/api/v1/books/", server.HandleGetBook)
+	http.HandleFunc("/api/v1/books", server.HandleBooksRoot)
+	http.HandleFunc("/api/v1/books/", server.HandleBooksSubtree)
 
 	http.ListenAndServe(":8080", nil)
 

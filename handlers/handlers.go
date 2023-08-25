@@ -175,13 +175,26 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	w.Write(respone)
 }
 
-func (s *Server) HandleBooks(w http.ResponseWriter, r *http.Request) {
+func (s *Server) HandleBooksRoot(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodPost:
 		s.HandleCreateBook(w, r)
 	case http.MethodGet:
 		s.HandleGetAllBooks(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+
+}
+
+func (s *Server) HandleBooksSubtree(w http.ResponseWriter, r *http.Request) {
+
+	switch r.Method {
+	case http.MethodDelete:
+		s.HandleDelete(w, r)
+	case http.MethodGet:
+		s.HandleGetBook(w, r)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -360,4 +373,40 @@ func (s *Server) HandleGetAllBooks(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(respone)
+}
+
+func (s *Server) HandleDelete(w http.ResponseWriter, r *http.Request) {
+
+	// check if method is delete
+	if r.Method != http.MethodDelete {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// check if user is logged in
+	token := r.Header.Get("Authorization")
+	_, err := s.auth.GetUsernameByToken(token)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		s.logger.WithError(err).Warn("could not log in the user")
+		return
+	}
+
+	// get the book id
+	bookID, err := strconv.Atoi(path.Base(r.URL.Path))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// delete the book
+	err = s.db.DeleteBook(bookID)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 }
