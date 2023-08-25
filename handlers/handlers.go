@@ -443,7 +443,7 @@ func (s *Server) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	// check if user is logged in
 	token := r.Header.Get("Authorization")
-	_, err := s.auth.GetUsernameByToken(token)
+	username, err := s.auth.GetUsernameByToken(token)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		s.logger.WithError(err).Warn("could not log in the user")
@@ -474,12 +474,20 @@ func (s *Server) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// delete the book
-	err = s.db.UpdateBook(bookID, reqBody.Name, reqBody.Category)
-	if err != nil {
+	// update the book
+	err = s.db.UpdateUserBook(username, uint(bookID), reqBody.Name, reqBody.Category)
+	var res respone
+	if err == db.ErrBookNotFound || err == db.ErrUserNotFound || err == db.ErrPermissionDenied {
+		res.Message = err.Error()
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write(res.json())
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("error updating a book")
 		return
+	} else {
+		res.Message = "Book was updated successfully"
+		w.WriteHeader(http.StatusOK)
+		w.Write(res.json())
 	}
-
-	w.WriteHeader(http.StatusOK)
 }

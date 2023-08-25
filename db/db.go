@@ -144,8 +144,35 @@ func (gdb *GormDB) DeleteUserBook(username string, bookId uint) error {
 	}
 }
 
-func (gdb *GormDB) UpdateBook(id int, name string, category string) error {
+func (gdb *GormDB) UpdateBook(id uint, name string, category string) error {
 	return gdb.db.Model(models.Book{}).Where("id = ?", id).Update("name", name).Update("category", category).Error
+}
+
+func (gdb *GormDB) UpdateUserBook(username string, bookId uint, name string, category string) error {
+	// find the book
+	var book models.Book
+	result := gdb.db.Model(models.Book{}).Where("id = ?", bookId).Find(&book)
+	if result.RowsAffected == 0 {
+		return ErrBookNotFound
+	} else if result.Error != nil {
+		return result.Error
+	}
+
+	// find the user who owns the book
+	var user models.User
+	result = gdb.db.Model(models.User{}).Where("username = ?", username).Find(&user)
+	if result.RowsAffected != 1 {
+		return ErrUserNotFound
+	} else if result.Error != nil {
+		return result.Error
+	}
+
+	// update the book if the user owns it
+	if user.ID == book.UserID {
+		return gdb.UpdateBook(bookId, name, category)
+	} else {
+		return ErrPermissionDenied
+	}
 }
 
 // The boolean returned is flase when there is an error
