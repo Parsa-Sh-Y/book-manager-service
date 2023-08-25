@@ -150,3 +150,16 @@ func (gdb *GormDB) GetUserByUsername(username string) (*models.User, error) {
 	}
 
 }
+
+func (gdb *GormDB) GetAllBooks() (*[]models.Book, error) {
+
+	var books []models.Book
+
+	err := gdb.db.Model(models.Book{}).Find(&books).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &books, nil
+
+}

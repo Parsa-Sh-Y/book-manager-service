@@ -25,6 +25,10 @@ type tableOfContents struct {
 	Contents []string `json:"table_of_contents"`
 }
 
+type bookCollection struct {
+	Books *[]models.Book `json:"books"`
+}
+
 func CreateNewServer(conf config.Config) *Server {
 
 	// Setup the logger
@@ -171,6 +175,19 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	w.Write(respone)
 }
 
+func (s *Server) HandleBooks(w http.ResponseWriter, r *http.Request) {
+
+	switch r.Method {
+	case http.MethodPost:
+		s.HandleCreateBook(w, r)
+	case http.MethodGet:
+		s.HandleGetAllBooks(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+
+}
+
 func (s *Server) HandleCreateBook(w http.ResponseWriter, r *http.Request) {
 
 	// check if method is POST
@@ -277,7 +294,6 @@ func (s *Server) HandleGetBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bookID, err := strconv.Atoi(path.Base(r.URL.Path))
-	s.logger.Debug(bookID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -285,7 +301,6 @@ func (s *Server) HandleGetBook(w http.ResponseWriter, r *http.Request) {
 
 	// Get the book from the database
 	book, err := s.db.GetBook(bookID)
-	s.logger.Debugf("%+v", *book)
 	if err != nil {
 		// TODO : check for different errors
 		w.WriteHeader(http.StatusBadRequest)
@@ -307,4 +322,42 @@ func (s *Server) HandleGetBook(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
+}
+
+func (s *Server) HandleGetAllBooks(w http.ResponseWriter, r *http.Request) {
+
+	// check if method is GET
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// check if user is logged in
+	token := r.Header.Get("Authorization")
+	_, err := s.auth.GetUsernameByToken(token)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		s.logger.WithError(err).Warn("could not log in the user")
+		return
+	}
+
+	var books bookCollection
+	// get all books from the database
+	books.Books, err = s.db.GetAllBooks()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("error retrieving all the books from the database")
+		return
+	}
+
+	// create the respone
+	respone, err := json.Marshal(&books)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("error trying to marshal the respone")
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(respone)
 }
