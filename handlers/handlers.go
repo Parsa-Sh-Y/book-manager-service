@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"path"
+	"strconv"
 
 	"github.com/Parsa-Sh-Y/book-manager-service/auth"
 	"github.com/Parsa-Sh-Y/book-manager-service/config"
@@ -152,8 +154,9 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(respone)
-	} else {
+	} else if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("error while logging in the user")
 		return
 	}
 
@@ -254,4 +257,54 @@ func (s *Server) HandleCreateBook(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(respone)
+}
+
+func (s *Server) HandleGetBook(w http.ResponseWriter, r *http.Request) {
+
+	// check if method is get
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// check if user is logged in
+	token := r.Header.Get("Authorization")
+	_, err := s.auth.GetUsernameByToken(token)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		s.logger.WithError(err).Warn("could not log in the user")
+		return
+	}
+
+	bookID, err := strconv.Atoi(path.Base(r.URL.Path))
+	s.logger.Debug(bookID)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Get the book from the database
+	book, err := s.db.GetBook(bookID)
+	s.logger.Debugf("%+v", *book)
+	if err != nil {
+		// TODO : check for different errors
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Populate TableOfContentsJson field
+	for _, content := range book.TableOfContents {
+		book.TableOfContentsJson = append(book.TableOfContentsJson, content.ContentName)
+	}
+
+	// Create the response
+	response, err := json.Marshal(&book)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("error while trying to marshal a requested book")
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
 }

@@ -23,16 +23,17 @@ type Content struct {
 }
 
 type Book struct {
-	ID              uint
-	Name            string    `gorm:"type:varchar(255)" json:"name"`
-	Category        string    `gorm:"type:varchar(255)" json:"category"`
-	Volumn          int       `gorm:"type:integer" json:"volumn"`
-	PublishedAt     time.Time `gorm:"type:date" json:"published_at"`
-	TableOfContents []Content `gorm:"constraint:onUpdate:CASCADE,onDelete:CASCADE"`
-	Summary         string    `gorm:"type:text" json:"summary"`
-	Publisher       string    `gorm:"type:varchar(255)" json:"publisher"`
-	Author          author    `gorm:"embedded" json:"author"`
-	UserID          uint
+	ID                  uint
+	Name                string    `gorm:"type:varchar(255)" json:"name"`
+	Category            string    `gorm:"type:varchar(255)" json:"category"`
+	Volumn              int       `gorm:"type:integer" json:"volumn"`
+	PublishedAt         time.Time `gorm:"type:date" json:"published_at"`
+	TableOfContents     []Content `gorm:"constraint:onUpdate:CASCADE,onDelete:CASCADE"`
+	TableOfContentsJson []string  `gorm:"-:all" json:"table_of_contents"` // only for json puposes, no such field would be created in the database
+	Summary             string    `gorm:"type:text" json:"summary"`
+	Publisher           string    `gorm:"type:varchar(255)" json:"publisher"`
+	Author              author    `gorm:"embedded" json:"author"`
+	UserID              uint      `json:"-"`
 }
 
 type author struct {
