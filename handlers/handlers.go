@@ -29,6 +29,11 @@ type bookCollection struct {
 	Books *[]models.Book `json:"books"`
 }
 
+type updateRequestBody struct {
+	Name     string `json:"name"`
+	Category string `json:"category"`
+}
+
 func CreateNewServer(conf config.Config) *Server {
 
 	// Setup the logger
@@ -195,6 +200,8 @@ func (s *Server) HandleBooksSubtree(w http.ResponseWriter, r *http.Request) {
 		s.HandleDelete(w, r)
 	case http.MethodGet:
 		s.HandleGetBook(w, r)
+	case http.MethodPut:
+		s.HandleUpdate(w, r)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -409,4 +416,55 @@ func (s *Server) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+}
+
+func (s *Server) HandleUpdate(w http.ResponseWriter, r *http.Request) {
+
+	// check if method is PUT
+	if r.Method != http.MethodPut {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// check if user is logged in
+	token := r.Header.Get("Authorization")
+	_, err := s.auth.GetUsernameByToken(token)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		s.logger.WithError(err).Warn("could not log in the user")
+		return
+	}
+
+	// get book id
+	bookID, err := strconv.Atoi(path.Base(r.URL.Path))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// get the request body
+
+	var reqBody updateRequestBody
+
+	reqData, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("can not read request body")
+		return
+	}
+	err = json.Unmarshal(reqData, &reqBody)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		s.logger.WithError(err).Error("error trying to parse request body")
+		return
+	}
+
+	// delete the book
+	err = s.db.UpdateBook(bookID, reqBody.Name, reqBody.Category)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
